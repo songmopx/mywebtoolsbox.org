@@ -44,7 +44,14 @@ class NavigationApp {
                 noWebsites: '暂无网站',
                 visitWebsite: '访问网站',
                 resetData: '重置',
-                confirmReset: '确定要重置所有数据吗？这将恢复到默认网站列表。'
+                confirmReset: '确定要重置所有数据吗？这将恢复到默认网站列表。',
+                exportData: '导出',
+                importData: '导入',
+                exportSuccess: '数据导出成功！',
+                importSuccess: '数据导入成功！',
+                importError: '导入失败，请检查文件格式。',
+                moveUp: '上移',
+                moveDown: '下移'
             },
             en: {
                 title: 'Personal Navigation',
@@ -67,7 +74,14 @@ class NavigationApp {
                 noWebsites: 'No websites',
                 visitWebsite: 'Visit Website',
                 resetData: 'Reset',
-                confirmReset: 'Are you sure you want to reset all data? This will restore the default website list.'
+                confirmReset: 'Are you sure you want to reset all data? This will restore the default website list.',
+                exportData: 'Export',
+                importData: 'Import',
+                exportSuccess: 'Data exported successfully!',
+                importSuccess: 'Data imported successfully!',
+                importError: 'Import failed, please check file format.',
+                moveUp: 'Move Up',
+                moveDown: 'Move Down'
             }
         };
         
@@ -150,6 +164,21 @@ class NavigationApp {
         // 重置数据按钮
         document.getElementById('resetDataBtn').addEventListener('click', () => {
             this.resetData();
+        });
+        
+        // 导出数据按钮
+        document.getElementById('exportDataBtn').addEventListener('click', () => {
+            this.exportData();
+        });
+        
+        // 导入数据按钮
+        document.getElementById('importDataBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+        
+        // 文件选择变化
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            this.handleFileImport(e);
         });
         
         // 网站表单提交
@@ -449,9 +478,18 @@ class NavigationApp {
         };
         
         return `
-            <div class="mb-8">
-                <div class="flex items-center justify-between mb-4">
+            <div class="mb-8 category-item" 
+                 draggable="true" 
+                 data-category-id="${category.id}"
+                 ondragstart="app.handleDragStart(event)"
+                 ondragover="app.handleDragOver(event)"
+                 ondrop="app.handleDrop(event)"
+                 ondragend="app.handleDragEnd(event)">
+                <div class="flex items-center justify-between mb-4 category-header">
                     <div class="flex items-center space-x-3">
+                        <div class="drag-handle cursor-move p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                            <i class="fas fa-grip-vertical"></i>
+                        </div>
                         <div class="w-10 h-10 bg-gradient-to-r ${colorClasses[category.color]} rounded-lg flex items-center justify-center text-white">
                             <i class="${category.icon}"></i>
                         </div>
@@ -462,11 +500,13 @@ class NavigationApp {
                     </div>
                     <div class="flex space-x-2">
                         <button onclick="app.showCategoryModal(${JSON.stringify(category).replace(/"/g, '&quot;')})" 
-                                class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                                class="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                                title="编辑分类">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button onclick="app.deleteCategory(${category.id})" 
-                                class="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                                class="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                title="删除分类">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -594,6 +634,248 @@ class NavigationApp {
             // 显示成功消息
             alert('数据已重置为默认设置！');
         }
+    }
+    
+    // 导出数据
+    exportData() {
+        try {
+            // 创建CSV内容
+            let csvContent = '\uFEFF分类名称,网站名称,网站URL,描述\n'; // 添加BOM以支持中文
+            
+            this.data.websites.forEach(website => {
+                const category = this.data.categories.find(c => c.id === website.categoryId);
+                const categoryName = category ? category.name : '未知分类';
+                const description = website.description || '';
+                
+                // 处理CSV中的特殊字符
+                const escapeCsv = (str) => {
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        return '"' + str.replace(/"/g, '""') + '"';
+                    }
+                    return str;
+                };
+                
+                csvContent += `${escapeCsv(categoryName)},${escapeCsv(website.name)},${escapeCsv(website.url)},${escapeCsv(description)}\n`;
+            });
+            
+            // 创建下载链接
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `网站导航_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            alert(this.translations[this.currentLang].exportSuccess);
+        } catch (error) {
+            console.error('导出失败:', error);
+            alert('导出失败，请稍后重试。');
+        }
+    }
+    
+    // 处理文件导入
+    handleFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                this.importData(e.target.result);
+            } catch (error) {
+                console.error('导入失败:', error);
+                alert(this.translations[this.currentLang].importError);
+            }
+        };
+        reader.readAsText(file, 'UTF-8');
+        
+        // 清空文件输入
+        event.target.value = '';
+    }
+    
+    // 导入数据
+    importData(csvContent) {
+        const lines = csvContent.split('\n');
+        if (lines.length < 2) {
+            throw new Error('文件格式不正确');
+        }
+        
+        // 跳过标题行
+        const dataLines = lines.slice(1).filter(line => line.trim());
+        
+        // 解析CSV
+        const newWebsites = [];
+        const categoryMap = new Map();
+        
+        // 首先创建分类映射
+        this.data.categories.forEach(cat => {
+            categoryMap.set(cat.name, cat.id);
+        });
+        
+        dataLines.forEach((line, index) => {
+            try {
+                // 简单的CSV解析（处理引号和逗号）
+                const values = this.parseCSVLine(line);
+                if (values.length < 3) return; // 至少需要分类、名称、URL
+                
+                const [categoryName, websiteName, websiteUrl, description = ''] = values;
+                
+                if (!categoryName || !websiteName || !websiteUrl) return;
+                
+                // 查找或创建分类
+                let categoryId = categoryMap.get(categoryName);
+                if (!categoryId) {
+                    // 创建新分类
+                    categoryId = Date.now() + Math.random();
+                    const newCategory = {
+                        id: categoryId,
+                        name: categoryName,
+                        nameEn: categoryName,
+                        icon: 'fas fa-folder',
+                        color: 'blue'
+                    };
+                    this.data.categories.push(newCategory);
+                    categoryMap.set(categoryName, categoryId);
+                }
+                
+                // 创建网站
+                const newWebsite = {
+                    id: Date.now() + Math.random() + index,
+                    name: websiteName,
+                    url: websiteUrl,
+                    categoryId: categoryId,
+                    description: description
+                };
+                
+                newWebsites.push(newWebsite);
+            } catch (error) {
+                console.warn(`跳过第${index + 2}行，解析失败:`, error);
+            }
+        });
+        
+        // 添加新网站到现有数据
+        this.data.websites.push(...newWebsites);
+        
+        // 保存并重新渲染
+        this.saveData();
+        this.renderCategories();
+        
+        alert(`${this.translations[this.currentLang].importSuccess} 导入了 ${newWebsites.length} 个网站。`);
+    }
+    
+    // 解析CSV行（处理引号和逗号）
+    parseCSVLine(line) {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        let i = 0;
+        
+        while (i < line.length) {
+            const char = line[i];
+            
+            if (char === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                    // 转义的引号
+                    current += '"';
+                    i += 2;
+                } else {
+                    // 切换引号状态
+                    inQuotes = !inQuotes;
+                    i++;
+                }
+            } else if (char === ',' && !inQuotes) {
+                // 字段分隔符
+                values.push(current.trim());
+                current = '';
+                i++;
+            } else {
+                current += char;
+                i++;
+            }
+        }
+        
+        // 添加最后一个字段
+        values.push(current.trim());
+        
+        return values;
+    }
+    
+    // 拖拽开始
+    handleDragStart(event) {
+        this.draggedCategoryId = parseInt(event.target.closest('.category-item').dataset.categoryId);
+        event.target.closest('.category-item').classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/html', event.target.outerHTML);
+    }
+    
+    // 拖拽经过
+    handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        
+        const categoryItem = event.target.closest('.category-item');
+        if (categoryItem && !categoryItem.classList.contains('dragging')) {
+            // 移除所有其他的拖拽指示器
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            
+            // 添加拖拽指示器
+            categoryItem.classList.add('drag-over');
+        }
+    }
+    
+    // 放置
+    handleDrop(event) {
+        event.preventDefault();
+        
+        const dropTarget = event.target.closest('.category-item');
+        if (!dropTarget || dropTarget.classList.contains('dragging')) {
+            return;
+        }
+        
+        const targetCategoryId = parseInt(dropTarget.dataset.categoryId);
+        
+        if (this.draggedCategoryId && this.draggedCategoryId !== targetCategoryId) {
+            this.reorderCategories(this.draggedCategoryId, targetCategoryId);
+        }
+        
+        // 清理拖拽状态
+        this.cleanupDragState();
+    }
+    
+    // 拖拽结束
+    handleDragEnd(event) {
+        this.cleanupDragState();
+    }
+    
+    // 清理拖拽状态
+    cleanupDragState() {
+        document.querySelectorAll('.category-item').forEach(item => {
+            item.classList.remove('dragging', 'drag-over');
+        });
+        this.draggedCategoryId = null;
+    }
+    
+    // 重新排序分类
+    reorderCategories(draggedId, targetId) {
+        const draggedIndex = this.data.categories.findIndex(c => c.id === draggedId);
+        const targetIndex = this.data.categories.findIndex(c => c.id === targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        // 移除被拖拽的项目
+        const draggedCategory = this.data.categories.splice(draggedIndex, 1)[0];
+        
+        // 插入到目标位置
+        this.data.categories.splice(targetIndex, 0, draggedCategory);
+        
+        // 保存并重新渲染
+        this.saveData();
+        this.renderCategories();
     }
 }
 
