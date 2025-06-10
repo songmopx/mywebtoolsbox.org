@@ -51,7 +51,9 @@ class NavigationApp {
                 importSuccess: '数据导入成功！',
                 importError: '导入失败，请检查文件格式。',
                 moveUp: '上移',
-                moveDown: '下移'
+                moveDown: '下移',
+                categoryDirectory: '分类目录',
+                jumpToCategory: '跳转到'
             },
             en: {
                 title: 'Personal Navigation',
@@ -81,7 +83,9 @@ class NavigationApp {
                 importSuccess: 'Data imported successfully!',
                 importError: 'Import failed, please check file format.',
                 moveUp: 'Move Up',
-                moveDown: 'Move Down'
+                moveDown: 'Move Down',
+                categoryDirectory: 'Category Directory',
+                jumpToCategory: 'Jump to'
             }
         };
         
@@ -92,13 +96,18 @@ class NavigationApp {
     init() {
         this.loadData();
         this.bindEvents();
-        this.renderCategories();
+        this.renderSidebar();
+        this.renderWebsites();
         this.updateUI();
         
         // 如果没有分类，添加默认分类
         if (this.data.categories.length === 0) {
             this.addDefaultCategories();
         }
+        
+        // 初始化侧边栏状态
+        this.currentCategoryId = null;
+        this.showAllWebsites();
     }
     
     // 添加默认分类
@@ -141,7 +150,8 @@ class NavigationApp {
         this.data.categories = defaultCategories;
         this.data.websites = defaultWebsites;
         this.saveData();
-        this.renderCategories();
+        this.renderSidebar();
+        this.renderWebsites();
     }
     
     // 绑定事件
@@ -179,6 +189,16 @@ class NavigationApp {
         // 文件选择变化
         document.getElementById('fileInput').addEventListener('change', (e) => {
             this.handleFileImport(e);
+        });
+        
+        // 侧边栏切换按钮
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            this.toggleSidebar();
+        });
+        
+        // 搜索输入
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            this.handleSearch(e.target.value);
         });
         
         // 网站表单提交
@@ -235,7 +255,8 @@ class NavigationApp {
         document.getElementById('currentLang').textContent = this.currentLang === 'zh' ? '中文' : 'English';
         document.querySelector('html').setAttribute('lang', this.currentLang === 'zh' ? 'zh-CN' : 'en');
         this.updateUI();
-        this.renderCategories();
+        this.renderSidebar();
+        this.renderWebsites();
     }
     
     // 更新UI文本
@@ -351,7 +372,8 @@ class NavigationApp {
         }
         
         this.saveData();
-        this.renderCategories();
+        this.renderSidebar();
+        this.renderWebsites();
         this.hideWebsiteModal();
     }
     
@@ -381,16 +403,18 @@ class NavigationApp {
         }
         
         this.saveData();
-        this.renderCategories();
+        this.renderSidebar();
+        this.renderWebsites();
         this.hideCategoryModal();
     }
     
     // 删除网站
     deleteWebsite(id) {
         if (confirm(this.translations[this.currentLang].confirmDelete)) {
-            this.data.websites = this.data.websites.filter(w => w.id !== id);
-            this.saveData();
-            this.renderCategories();
+                    this.data.websites = this.data.websites.filter(w => w.id !== id);
+        this.saveData();
+        this.renderSidebar();
+        this.renderWebsites();
         }
     }
     
@@ -401,14 +425,37 @@ class NavigationApp {
             this.data.websites = this.data.websites.filter(w => w.categoryId !== id);
             this.data.categories = this.data.categories.filter(c => c.id !== id);
             this.saveData();
-            this.renderCategories();
+            this.renderSidebar();
+            this.renderWebsites();
+        }
+    }
+
+    // 置顶分类
+    pinCategory(id) {
+        const category = this.data.categories.find(c => c.id === id);
+        if (category) {
+            category.pinned = true;
+            category.pinnedAt = Date.now(); // 记录置顶时间
+            this.saveData();
+            this.renderSidebar();
+        }
+    }
+
+    // 取消置顶分类
+    unpinCategory(id) {
+        const category = this.data.categories.find(c => c.id === id);
+        if (category) {
+            category.pinned = false;
+            delete category.pinnedAt; // 删除置顶时间
+            this.saveData();
+            this.renderSidebar();
         }
     }
     
     // 搜索处理
     handleSearch(query) {
         if (!query.trim()) {
-            this.renderCategories();
+            this.showAllWebsites();
             return;
         }
         
@@ -422,26 +469,25 @@ class NavigationApp {
     
     // 渲染搜索结果
     renderSearchResults(websites) {
-        const container = document.getElementById('categoriesContainer');
+        this.currentCategoryId = null;
+        this.updatePageTitle(`搜索结果`, `找到 ${websites.length} 个网站`);
+        
+        const container = document.getElementById('websitesContainer');
         
         if (websites.length === 0) {
             container.innerHTML = `
-                <div class="text-center py-12">
+                <div class="col-span-full text-center py-12">
                     <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-gray-500">${this.translations[this.currentLang].noWebsites}</p>
+                    <p class="text-gray-400">${this.translations[this.currentLang].noWebsites}</p>
                 </div>
             `;
             return;
         }
         
-        container.innerHTML = `
-            <div class="mb-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">搜索结果 (${websites.length})</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    ${websites.map(website => this.renderWebsiteCard(website)).join('')}
-                </div>
-            </div>
-        `;
+        container.innerHTML = websites.map(website => this.renderWebsiteCard(website)).join('');
+        
+        // 在DOM更新后检查所有图标
+        setTimeout(() => this.checkAndFixBrokenIcons(), 200);
     }
     
     // 渲染分类
@@ -458,10 +504,32 @@ class NavigationApp {
             return;
         }
         
-        container.innerHTML = this.data.categories.map(category => {
+        // 对分类进行排序：置顶的在前，按置顶时间倒序排列，非置顶的按原有顺序
+        const sortedCategories = [...this.data.categories].sort((a, b) => {
+            if (a.pinned && b.pinned) {
+                // 都是置顶的，按置顶时间排序（最新置顶的在前面）
+                return (b.pinnedAt || 0) - (a.pinnedAt || 0);
+            } else if (a.pinned && !b.pinned) {
+                // a是置顶的，b不是，a在前
+                return -1;
+            } else if (!a.pinned && b.pinned) {
+                // b是置顶的，a不是，b在前
+                return 1;
+            } else {
+                // 都不是置顶的，保持原有顺序
+                return 0;
+            }
+        });
+
+        container.innerHTML = sortedCategories.map(category => {
             const websites = this.data.websites.filter(w => w.categoryId === category.id);
             return this.renderCategory(category, websites);
         }).join('');
+        
+        
+        
+        // 更新分类导航
+        this.updateCategoryNav();
     }
     
     // 渲染单个分类
@@ -479,26 +547,32 @@ class NavigationApp {
         
         return `
             <div class="mb-8 category-item" 
-                 draggable="true" 
                  data-category-id="${category.id}"
-                 ondragstart="app.handleDragStart(event)"
-                 ondragover="app.handleDragOver(event)"
-                 ondrop="app.handleDrop(event)"
-                 ondragend="app.handleDragEnd(event)">
+                 id="category-${category.id}">
                 <div class="flex items-center justify-between mb-4 category-header">
                     <div class="flex items-center space-x-3">
-                        <div class="drag-handle cursor-move p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                            <i class="fas fa-grip-vertical"></i>
-                        </div>
                         <div class="w-10 h-10 bg-gradient-to-r ${colorClasses[category.color]} rounded-lg flex items-center justify-center text-white">
                             <i class="${category.icon}"></i>
                         </div>
-                        <h2 class="text-xl font-semibold text-gray-800">
-                            ${this.currentLang === 'zh' ? category.name : category.nameEn}
+                        <h2 class="flex items-center space-x-2 text-xl font-semibold text-gray-800">
+                            <span>${this.currentLang === 'zh' ? category.name : category.nameEn}</span>
+                            ${category.pinned ? '<i class="fas fa-arrow-up text-blue-500 text-sm" title="已置顶"></i>' : ''}
                         </h2>
                         <span class="text-sm text-gray-500">(${websites.length})</span>
                     </div>
                     <div class="flex space-x-2">
+                        ${category.pinned ? 
+                            `<button onclick="app.unpinCategory(${category.id})" 
+                                     class="pin-button p-2 text-blue-500 hover:text-blue-600 transition-colors"
+                                     title="取消置顶">
+                                <i class="fas fa-arrow-up"></i>
+                             </button>` :
+                            `<button onclick="app.pinCategory(${category.id})" 
+                                     class="pin-button p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                                     title="置顶分类">
+                                <i class="fas fa-arrow-up"></i>
+                             </button>`
+                        }
                         <button onclick="app.showCategoryModal(${JSON.stringify(category).replace(/"/g, '&quot;')})" 
                                 class="p-2 text-gray-400 hover:text-gray-600 transition-colors"
                                 title="编辑分类">
@@ -522,36 +596,100 @@ class NavigationApp {
         `;
     }
     
+    // 生成随机备用图标
+    generateFallbackIcon(websiteName, websiteId) {
+        // 获取网站名称的首字符
+        const firstChar = websiteName.charAt(0).toUpperCase();
+        
+        // 预定义的渐变色配置
+        const gradientColors = [
+            ['#667eea', '#764ba2'], // 紫蓝渐变
+            ['#f093fb', '#f5576c'], // 粉红渐变
+            ['#4facfe', '#00f2fe'], // 蓝色渐变
+            ['#43e97b', '#38f9d7'], // 绿蓝渐变
+            ['#fa709a', '#fee140'], // 粉黄渐变
+            ['#a8edea', '#fed6e3'], // 青粉渐变
+            ['#ff9a9e', '#fecfef'], // 粉色渐变
+            ['#a18cd1', '#fbc2eb'], // 紫粉渐变
+            ['#fad0c4', '#ffd1ff'], // 橙粉渐变
+            ['#ffecd2', '#fcb69f'], // 橙色渐变
+            ['#ff8a80', '#ea4335'], // 红色渐变
+            ['#81c784', '#4caf50'], // 绿色渐变
+            ['#64b5f6', '#2196f3'], // 蓝色渐变
+            ['#ffb74d', '#ff9800'], // 橙色渐变
+            ['#ba68c8', '#9c27b0']  // 紫色渐变
+        ];
+        
+        // 基于网站ID选择一个固定的渐变（确保同一网站的图标颜色一致）
+        const gradientIndex = websiteId % gradientColors.length;
+        const [startColor, endColor] = gradientColors[gradientIndex];
+        
+        // 生成SVG图标
+        const svgIcon = `data:image/svg+xml,${encodeURIComponent(`
+            <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="grad${websiteId}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${startColor};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${endColor};stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect width="40" height="40" rx="8" fill="url(#grad${websiteId})"/>
+                <text x="20" y="28" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="600" text-anchor="middle" fill="white">${firstChar}</text>
+            </svg>
+        `)}`;
+        
+        return svgIcon;
+    }
+
     // 渲染网站卡片
     renderWebsiteCard(website) {
         const category = this.data.categories.find(c => c.id === website.categoryId);
+        const categoryName = category ? (this.currentLang === 'zh' ? category.name : category.nameEn) : 'Unknown';
         const faviconUrl = `https://www.google.com/s2/favicons?domain=${new URL(website.url).hostname}&sz=32`;
+        const fallbackIcon = this.generateFallbackIcon(website.name, website.id);
         
         return `
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 card-hover">
-                <div class="flex items-start space-x-3">
-                    <img src="${faviconUrl}" alt="" class="w-8 h-8 rounded" onerror="this.src='data:image/svg+xml,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;%23666&quot;><path d=&quot;M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z&quot;/></svg>'">
-                    <div class="flex-1 min-w-0">
-                        <h3 class="font-medium text-gray-900 truncate">${website.name}</h3>
-                        ${website.description ? `<p class="text-sm text-gray-500 mt-1 line-clamp-2">${website.description}</p>` : ''}
-                        <div class="flex items-center justify-between mt-3">
-                            <a href="${website.url}" target="_blank" rel="noopener noreferrer"
-                               class="text-sm text-blue-600 hover:text-blue-800 transition-colors">
-                                ${this.translations[this.currentLang].visitWebsite}
-                            </a>
-                            <div class="flex space-x-1">
-                                <button onclick="app.showWebsiteModal(${JSON.stringify(website).replace(/"/g, '&quot;')})"
-                                        class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                                    <i class="fas fa-edit text-xs"></i>
-                                </button>
-                                <button onclick="app.deleteWebsite(${website.id})"
-                                        class="p-1 text-gray-400 hover:text-red-500 transition-colors">
-                                    <i class="fas fa-trash text-xs"></i>
-                                </button>
-                            </div>
+            <div class="website-card p-6 group">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <img src="${faviconUrl}" 
+                                 alt="${website.name}" 
+                                 class="w-10 h-10 rounded-lg favicon-img" 
+                                 style="display: block;"
+                                 onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-icon').style.display='block';">
+                            <img src="${fallbackIcon}" 
+                                 alt="${website.name}" 
+                                 class="w-10 h-10 rounded-lg fallback-icon" 
+                                 style="display: none;">
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-100 text-lg mb-1">${website.name}</h3>
+                            <p class="text-sm text-amber-500">${categoryName}</p>
                         </div>
                     </div>
+                    
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                        <button onclick="app.showWebsiteModal(${JSON.stringify(website).replace(/"/g, '&quot;')})" 
+                                class="p-2 text-gray-400 hover:text-amber-500 hover:bg-slate-700 rounded-lg transition-colors"
+                                title="${this.translations[this.currentLang].edit}">
+                            <i class="fas fa-edit text-sm"></i>
+                        </button>
+                        <button onclick="app.deleteWebsite(${website.id})" 
+                                class="p-2 text-gray-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                                title="${this.translations[this.currentLang].delete}">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </div>
                 </div>
+                
+                <p class="text-gray-400 text-sm mb-4 line-clamp-2">${website.description || '暂无描述'}</p>
+                
+                <a href="${website.url}" target="_blank" rel="noopener noreferrer" 
+                   class="inline-flex items-center space-x-2 text-amber-500 hover:text-amber-400 font-medium text-sm transition-colors">
+                    <span>${this.translations[this.currentLang].visitWebsite}</span>
+                    <i class="fas fa-external-link-alt text-xs"></i>
+                </a>
             </div>
         `;
     }
@@ -629,7 +767,8 @@ class NavigationApp {
             this.addDefaultCategories();
             
             // 重新渲染界面
-            this.renderCategories();
+            this.renderSidebar();
+            this.renderWebsites();
             
             // 显示成功消息
             alert('数据已重置为默认设置！');
@@ -761,7 +900,8 @@ class NavigationApp {
         
         // 保存并重新渲染
         this.saveData();
-        this.renderCategories();
+        this.renderSidebar();
+        this.renderWebsites();
         
         alert(`${this.translations[this.currentLang].importSuccess} 导入了 ${newWebsites.length} 个网站。`);
     }
@@ -803,79 +943,192 @@ class NavigationApp {
         return values;
     }
     
-    // 拖拽开始
-    handleDragStart(event) {
-        this.draggedCategoryId = parseInt(event.target.closest('.category-item').dataset.categoryId);
-        event.target.closest('.category-item').classList.add('dragging');
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/html', event.target.outerHTML);
-    }
-    
-    // 拖拽经过
-    handleDragOver(event) {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
+
+        // 切换侧边栏
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        const toggleIcon = toggleBtn.querySelector('i');
         
-        const categoryItem = event.target.closest('.category-item');
-        if (categoryItem && !categoryItem.classList.contains('dragging')) {
-            // 移除所有其他的拖拽指示器
-            document.querySelectorAll('.category-item').forEach(item => {
-                item.classList.remove('drag-over');
-            });
+        if (window.innerWidth <= 1024) {
+            // 移动端：切换侧边栏显示/隐藏
+            sidebar.classList.toggle('mobile-open');
+        } else {
+            // 桌面端：切换侧边栏收缩/展开
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
             
-            // 添加拖拽指示器
-            categoryItem.classList.add('drag-over');
+            if (sidebar.classList.contains('collapsed')) {
+                toggleIcon.className = 'fas fa-chevron-right';
+            } else {
+                toggleIcon.className = 'fas fa-chevron-left';
+            }
         }
     }
     
-    // 放置
-    handleDrop(event) {
-        event.preventDefault();
+    // 渲染侧边栏
+    renderSidebar() {
+        const sidebarList = document.getElementById('sidebarCategoryList');
+        if (!sidebarList) return;
         
-        const dropTarget = event.target.closest('.category-item');
-        if (!dropTarget || dropTarget.classList.contains('dragging')) {
+        const colorClasses = {
+            purple: 'from-purple-500 to-purple-600',
+            blue: 'from-blue-500 to-blue-600',
+            green: 'from-green-500 to-green-600',
+            red: 'from-red-500 to-red-600',
+            yellow: 'from-yellow-500 to-yellow-600',
+            pink: 'from-pink-500 to-pink-600',
+            indigo: 'from-indigo-500 to-indigo-600',
+            gray: 'from-gray-500 to-gray-600'
+        };
+        
+        // 获取按置顶时间排序的分类
+        const sortedCategories = [...this.data.categories].sort((a, b) => {
+            if (a.pinnedAt && b.pinnedAt) {
+                return b.pinnedAt - a.pinnedAt;
+            }
+            if (a.pinnedAt) return -1;
+            if (b.pinnedAt) return 1;
+            return 0;
+        });
+        
+        // 添加"所有网站"选项
+        let html = `
+            <div class="sidebar-item ${this.currentCategoryId === null ? 'active' : ''} p-4 cursor-pointer" 
+                 onclick="app.showAllWebsites()">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-r from-amber-600 to-amber-700 rounded-lg flex items-center justify-center text-white">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-100">所有网站</h4>
+                        <p class="text-sm text-gray-400">${this.data.websites.length}个网站</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 添加分类项
+        html += sortedCategories.map(category => {
+            const websites = this.data.websites.filter(w => w.categoryId === category.id);
+            const isActive = this.currentCategoryId === category.id;
+            const isPinned = category.pinnedAt;
+            
+            return `
+                <div class="sidebar-item ${isActive ? 'active' : ''} p-4 cursor-pointer" 
+                     onclick="app.showCategoryWebsites(${category.id})">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r ${colorClasses[category.color]} rounded-lg flex items-center justify-center text-white">
+                                <i class="${category.icon}"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-100 flex items-center space-x-2">
+                                    <span>${this.currentLang === 'zh' ? category.name : category.nameEn}</span>
+                                    ${isPinned ? '<i class="fas fa-arrow-up text-amber-500 text-xs"></i>' : ''}
+                                </h4>
+                                <p class="text-sm text-gray-400">${websites.length}个网站</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="event.stopPropagation(); app.${isPinned ? 'unpinCategory' : 'pinCategory'}(${category.id})" 
+                                    class="p-2 text-${isPinned ? 'amber-500' : 'gray-400'} hover:bg-slate-700 rounded-lg transition-colors"
+                                    title="${isPinned ? '取消置顶' : '置顶'}">
+                                <i class="fas fa-arrow-up text-xs"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); app.showCategoryModal(${JSON.stringify(category).replace(/"/g, '&quot;')})" 
+                                    class="p-2 text-gray-400 hover:bg-slate-700 rounded-lg transition-colors"
+                                    title="编辑">
+                                <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); app.deleteCategory(${category.id})" 
+                                    class="p-2 text-gray-400 hover:bg-slate-700 hover:text-red-400 rounded-lg transition-colors"
+                                    title="删除">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        sidebarList.innerHTML = html;
+    }
+    
+    // 显示所有网站
+    showAllWebsites() {
+        this.currentCategoryId = null;
+        this.renderSidebar();
+        this.renderWebsites();
+        this.updatePageTitle('所有网站', '浏览和管理你收藏的网站');
+    }
+    
+    // 显示指定分类的网站
+    showCategoryWebsites(categoryId) {
+        const category = this.data.categories.find(c => c.id === categoryId);
+        if (!category) return;
+        
+        this.currentCategoryId = categoryId;
+        this.renderSidebar();
+        this.renderWebsites();
+        
+        const categoryName = this.currentLang === 'zh' ? category.name : category.nameEn;
+        const websites = this.data.websites.filter(w => w.categoryId === categoryId);
+        this.updatePageTitle(categoryName, `${websites.length}个网站`);
+    }
+    
+    // 更新页面标题
+    updatePageTitle(title, description) {
+        const titleElement = document.getElementById('currentCategoryTitle');
+        const descriptionElement = document.getElementById('currentCategoryDescription');
+        
+        if (titleElement) titleElement.textContent = title;
+        if (descriptionElement) descriptionElement.textContent = description;
+    }
+    
+    // 渲染网站列表
+    renderWebsites() {
+        const container = document.getElementById('websitesContainer');
+        if (!container) return;
+        
+        let websites;
+        if (this.currentCategoryId === null) {
+            websites = this.data.websites;
+        } else {
+            websites = this.data.websites.filter(w => w.categoryId === this.currentCategoryId);
+        }
+        
+        if (websites.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-globe text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-400">${this.translations[this.currentLang].noWebsites}</p>
+                </div>
+            `;
             return;
         }
         
-        const targetCategoryId = parseInt(dropTarget.dataset.categoryId);
+        container.innerHTML = websites.map(website => this.renderWebsiteCard(website)).join('');
         
-        if (this.draggedCategoryId && this.draggedCategoryId !== targetCategoryId) {
-            this.reorderCategories(this.draggedCategoryId, targetCategoryId);
-        }
-        
-        // 清理拖拽状态
-        this.cleanupDragState();
+        // 在DOM更新后检查所有图标
+        setTimeout(() => this.checkAndFixBrokenIcons(), 200);
     }
-    
-    // 拖拽结束
-    handleDragEnd(event) {
-        this.cleanupDragState();
-    }
-    
-    // 清理拖拽状态
-    cleanupDragState() {
-        document.querySelectorAll('.category-item').forEach(item => {
-            item.classList.remove('dragging', 'drag-over');
+
+    // 检查并修复失效的图标
+    checkAndFixBrokenIcons() {
+        const faviconImages = document.querySelectorAll('.favicon-img');
+        faviconImages.forEach(img => {
+            // 检查图标是否加载失败或者是1x1像素的占位图
+            if ((img.naturalWidth === 0 && img.complete) || 
+                (img.naturalWidth <= 16 && img.naturalHeight <= 16 && img.complete)) {
+                img.style.display = 'none';
+                const fallbackIcon = img.parentNode.querySelector('.fallback-icon');
+                if (fallbackIcon) {
+                    fallbackIcon.style.display = 'block';
+                }
+            }
         });
-        this.draggedCategoryId = null;
-    }
-    
-    // 重新排序分类
-    reorderCategories(draggedId, targetId) {
-        const draggedIndex = this.data.categories.findIndex(c => c.id === draggedId);
-        const targetIndex = this.data.categories.findIndex(c => c.id === targetId);
-        
-        if (draggedIndex === -1 || targetIndex === -1) return;
-        
-        // 移除被拖拽的项目
-        const draggedCategory = this.data.categories.splice(draggedIndex, 1)[0];
-        
-        // 插入到目标位置
-        this.data.categories.splice(targetIndex, 0, draggedCategory);
-        
-        // 保存并重新渲染
-        this.saveData();
-        this.renderCategories();
     }
 }
 

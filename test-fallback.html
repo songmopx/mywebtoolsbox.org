@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>备用图标测试</title>
+    <style>
+        body { 
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #e2e8f0; 
+            padding: 20px; 
+            font-family: system-ui;
+        }
+        .test-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .test-card {
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .icon-container {
+            position: relative;
+        }
+        .favicon-img, .fallback-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .fallback-icon {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>备用图标测试</h1>
+    <p>以下网站将测试备用图标功能：</p>
+    
+    <div class="test-container" id="testContainer"></div>
+    
+    <script>
+        // 生成备用图标的函数
+        function generateFallbackIcon(websiteName, websiteId) {
+            const firstChar = websiteName.charAt(0).toUpperCase();
+            const gradientColors = [
+                ['#667eea', '#764ba2'],
+                ['#f093fb', '#f5576c'], 
+                ['#4facfe', '#00f2fe'],
+                ['#43e97b', '#38f9d7'],
+                ['#fa709a', '#fee140'],
+                ['#a8edea', '#fed6e3'],
+                ['#ff9a9e', '#fecfef'],
+                ['#a18cd1', '#fbc2eb'],
+                ['#fad0c4', '#ffd1ff'],
+                ['#ffecd2', '#fcb69f']
+            ];
+            
+            const gradientIndex = websiteId % gradientColors.length;
+            const [startColor, endColor] = gradientColors[gradientIndex];
+            
+            const svgIcon = `data:image/svg+xml,${encodeURIComponent(`
+                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="grad${websiteId}" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:${startColor};stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:${endColor};stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="40" height="40" rx="8" fill="url(#grad${websiteId})"/>
+                    <text x="20" y="28" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="600" text-anchor="middle" fill="white">${firstChar}</text>
+                </svg>
+            `)}`;
+            
+            return svgIcon;
+        }
+        
+        // 测试数据 - 包含一些故意无效的favicon URL
+        const testSites = [
+            {name: "小红书IP搭建", id: 1, url: "https://invalid-domain-for-test.com"},
+            {name: "Claude AI", id: 2, url: "https://nonexistent.ai"},
+            {name: "Google搜索", id: 3, url: "https://google.com"},
+            {name: "百度搜索", id: 4, url: "https://baidu.com"},
+            {name: "GitHub代码", id: 5, url: "https://github.com"},
+            {name: "微信公众号", id: 6, url: "https://fake-wx.com"},
+            {name: "淘宝购物", id: 7, url: "https://taobao.com"},
+            {name: "知乎问答", id: 8, url: "https://zhihu.com"}
+        ];
+        
+        function renderTestCard(site) {
+            const faviconUrl = `https://www.google.com/s2/favicons?domain=${new URL(site.url).hostname}&sz=32`;
+            const fallbackIcon = generateFallbackIcon(site.name, site.id);
+            
+            return `
+                <div class="test-card">
+                    <div class="icon-container">
+                        <img src="${faviconUrl}" 
+                             alt="${site.name}" 
+                             class="favicon-img" 
+                             onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-icon').style.display='block';">
+                        <img src="${fallbackIcon}" 
+                             alt="${site.name}" 
+                             class="fallback-icon">
+                    </div>
+                    <div>
+                        <h3>${site.name}</h3>
+                        <p style="font-size: 12px; color: #94a3b8;">${site.url}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 渲染测试卡片
+        const container = document.getElementById('testContainer');
+        container.innerHTML = testSites.map(site => renderTestCard(site)).join('');
+        
+        // 延迟检查图标状态
+        setTimeout(() => {
+            const faviconImages = document.querySelectorAll('.favicon-img');
+            faviconImages.forEach(img => {
+                // 强制检查小图标或失效图标
+                if ((img.naturalWidth === 0 && img.complete) || 
+                    (img.naturalWidth <= 16 && img.naturalHeight <= 16 && img.complete)) {
+                    img.style.display = 'none';
+                    const fallbackIcon = img.parentNode.querySelector('.fallback-icon');
+                    if (fallbackIcon) {
+                        fallbackIcon.style.display = 'block';
+                    }
+                }
+            });
+        }, 1000);
+    </script>
+</body>
+</html> 

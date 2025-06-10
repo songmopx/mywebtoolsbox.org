@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深色商务风格 - 布局方案预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .dark-theme { 
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); 
+            color: #e2e8f0; 
+            min-height: 100vh; 
+        }
+        .header { 
+            background: rgba(30, 41, 59, 0.95); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(148, 163, 184, 0.1); 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); 
+        }
+        .category-card { 
+            background: rgba(30, 41, 59, 0.8); 
+            border: 1px solid rgba(148, 163, 184, 0.15); 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25); 
+            transition: all 0.3s ease; 
+            position: relative; 
+        }
+        .category-card::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            height: 2px; 
+            background: linear-gradient(90deg, #f59e0b, #d97706); 
+            opacity: 0; 
+            transition: opacity 0.3s; 
+        }
+        .category-card:hover::before { opacity: 1; }
+        .category-card:hover { 
+            background: rgba(51, 65, 85, 0.9); 
+            transform: translateY(-2px); 
+        }
+        .website-card { 
+            background: rgba(51, 65, 85, 0.6); 
+            border: 1px solid rgba(148, 163, 184, 0.1); 
+            transition: all 0.2s ease; 
+        }
+        .website-card:hover { 
+            background: rgba(71, 85, 105, 0.8); 
+            transform: translateY(-1px); 
+        }
+        .sidebar { 
+            background: rgba(15, 23, 42, 0.9); 
+            border-right: 1px solid rgba(148, 163, 184, 0.1); 
+        }
+        .sidebar-item { 
+            transition: all 0.2s ease; 
+        }
+        .sidebar-item:hover { 
+            background: rgba(30, 41, 59, 0.6); 
+        }
+        .sidebar-item.active { 
+            background: rgba(245, 158, 11, 0.1); 
+            border-left: 3px solid #f59e0b; 
+        }
+        .masonry { 
+            column-count: 3; 
+            column-gap: 1.5rem; 
+        }
+        .masonry-item { 
+            break-inside: avoid; 
+            margin-bottom: 1.5rem; 
+        }
+        @media (max-width: 1024px) { 
+            .masonry { column-count: 2; } 
+        }
+        @media (max-width: 640px) { 
+            .masonry { column-count: 1; } 
+        }
+        .nav-pills { 
+            position: fixed; 
+            top: 2rem; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 1000; 
+            background: rgba(30, 41, 59, 0.9); 
+            border-radius: 50px; 
+            padding: 0.5rem; 
+            border: 1px solid rgba(148, 163, 184, 0.2); 
+        }
+        .nav-pills button { 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 50px; 
+            transition: all 0.3s ease; 
+            color: #94a3b8; 
+        }
+        .nav-pills button.active { 
+            background: #f59e0b; 
+            color: white; 
+        }
+        .section-title { 
+            text-align: center; 
+            margin-bottom: 3rem; 
+        }
+        .preview-section { 
+            min-height: 100vh; 
+            padding: 2rem 0; 
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="nav-pills">
+        <button onclick="scrollToSection('layout1')" class="active" id="btn-layout1">经典网格</button>
+        <button onclick="scrollToSection('layout2')" id="btn-layout2">侧边栏式</button>
+        <button onclick="scrollToSection('layout3')" id="btn-layout3">瀑布流式</button>
+    </div>
+
+    <!-- 布局1: 经典网格布局 -->
+    <section id="layout1" class="preview-section">
+        <div class="container mx-auto px-6">
+            <div class="section-title">
+                <h1 class="text-4xl font-light text-gray-100 mb-2">经典网格布局</h1>
+                <p class="text-gray-400">传统排版 · 清晰分类 · 易于浏览</p>
+            </div>
+            
+            <div class="header rounded-2xl p-6 mb-8">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-light text-gray-100">个人网页导航</h2>
+                    <div class="flex space-x-3">
+                        <button class="px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>添加网站
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-8">
+                <div class="category-card rounded-2xl p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-gradient-to-r from-amber-600 to-amber-700 rounded-xl flex items-center justify-center text-white">
+                                <i class="fab fa-chrome"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-medium text-gray-100 flex items-center space-x-2">
+                                    <span>公域平台</span>
+                                    <i class="fas fa-arrow-up text-amber-500 text-sm"></i>
+                                </h3>
+                                <p class="text-sm text-gray-400">5个网站</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="website-card rounded-xl p-4">
+                            <div class="flex items-start space-x-3">
+                                <img src="https://www.google.com/s2/favicons?domain=douyin.com&sz=32" class="w-8 h-8 rounded">
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-gray-100">抖音</h4>
+                                    <p class="text-sm text-gray-400 mt-1">记录美好生活</p>
+                                    <a href="#" class="text-sm text-amber-500 hover:text-amber-400 mt-2 inline-block">访问网站</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="website-card rounded-xl p-4">
+                            <div class="flex items-start space-x-3">
+                                <img src="https://www.google.com/s2/favicons?domain=xiaohongshu.com&sz=32" class="w-8 h-8 rounded">
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-gray-100">小红书</h4>
+                                    <p class="text-sm text-gray-400 mt-1">标记我的生活</p>
+                                    <a href="#" class="text-sm text-amber-500 hover:text-amber-400 mt-2 inline-block">访问网站</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 布局2: 侧边栏布局 -->
+    <section id="layout2" class="preview-section">
+        <div class="section-title">
+            <h1 class="text-4xl font-light text-gray-100 mb-2">侧边栏布局</h1>
+            <p class="text-gray-400">分类导航 · 高效切换 · 专业界面</p>
+        </div>
+        
+        <div class="flex min-h-screen">
+            <div class="w-80 sidebar p-6">
+                <h2 class="text-xl font-medium text-gray-100 mb-6">分类导航</h2>
+                <div class="space-y-2">
+                    <div class="sidebar-item active p-4 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-amber-600 to-amber-700 rounded-lg flex items-center justify-center text-white">
+                                <i class="fab fa-chrome"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-100">公域平台</h4>
+                                <p class="text-sm text-gray-400">5个网站</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sidebar-item p-4 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center text-white">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-100">AI导航</h4>
+                                <p class="text-sm text-gray-400">8个网站</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-1 p-6">
+                <h3 class="text-2xl font-medium text-gray-100 mb-6">公域平台</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="website-card rounded-xl p-6">
+                        <div class="flex items-start space-x-4">
+                            <img src="https://www.google.com/s2/favicons?domain=douyin.com&sz=32" class="w-10 h-10 rounded">
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-100 text-lg">抖音</h4>
+                                <p class="text-gray-400 mt-2">记录美好生活，发现更多精彩内容</p>
+                                <a href="#" class="text-amber-500 hover:text-amber-400 mt-3 inline-block">访问网站 →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 布局3: 瀑布流布局 -->
+    <section id="layout3" class="preview-section">
+        <div class="container mx-auto px-6">
+            <div class="section-title">
+                <h1 class="text-4xl font-light text-gray-100 mb-2">瀑布流布局</h1>
+                <p class="text-gray-400">动态排列 · 视觉丰富 · 创意展示</p>
+            </div>
+
+            <div class="masonry">
+                <div class="masonry-item">
+                    <div class="category-card rounded-2xl p-6">
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-amber-600 to-amber-700 rounded-xl flex items-center justify-center text-white">
+                                <i class="fab fa-chrome"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-100">公域平台</h3>
+                                <p class="text-sm text-gray-400">5个网站</p>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="website-card rounded-lg p-3">
+                                <div class="flex items-center space-x-3">
+                                    <img src="https://www.google.com/s2/favicons?domain=douyin.com&sz=32" class="w-6 h-6 rounded">
+                                    <div class="flex-1">
+                                        <h4 class="font-medium text-gray-100 text-sm">抖音</h4>
+                                        <p class="text-xs text-gray-400">记录美好生活</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="masonry-item">
+                    <div class="category-card rounded-2xl p-6">
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center text-white">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-100">AI导航</h3>
+                                <p class="text-sm text-gray-400">8个网站</p>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="website-card rounded-lg p-3">
+                                <div class="flex items-center space-x-3">
+                                    <img src="https://www.google.com/s2/favicons?domain=openai.com&sz=32" class="w-6 h-6 rounded">
+                                    <div class="flex-1">
+                                        <h4 class="font-medium text-gray-100 text-sm">ChatGPT</h4>
+                                        <p class="text-xs text-gray-400">AI对话助手</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        function scrollToSection(sectionId) {
+            document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth' });
+            document.querySelectorAll('.nav-pills button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + sectionId).classList.add('active');
+        }
+    </script>
+</body>
+</html>
